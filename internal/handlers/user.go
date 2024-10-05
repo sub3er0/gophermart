@@ -5,9 +5,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/jackc/pgx/v4"
 	"gophermart/internal/accrual"
+	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
-	"gophermart/internal/service"
 	"io"
 	"net/http"
 	"regexp"
@@ -17,10 +17,10 @@ import (
 )
 
 type UserHandler struct {
-	UserService          service.UserService
-	OrderService         service.OrderService
-	WithdrawService      service.WithdrawService
-	UserBalanceService   service.UserBalanceService
+	UserService          interfaces.UserServiceInterface
+	OrderService         interfaces.OrderServiceInterface
+	WithdrawService      interfaces.WithdrawRepositoryInterface
+	UserBalanceService   interfaces.UserBalanceRepositoryInterface
 	AccrualSystemAddress string
 }
 
@@ -37,7 +37,9 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := uh.UserService.UserRepository.IsUserExists(user.Username)
+	userRepository := uh.UserService.GetUserRepository()
+
+	userID := userRepository.IsUserExists(user.Username)
 
 	if userID == -2 {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
@@ -49,9 +51,10 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
-	tx, err := uh.OrderService.OrderRepository.DBStorage.Conn.BeginTx(
-		uh.OrderService.OrderRepository.DBStorage.Ctx, pgx.TxOptions{})
+	orderRepository := uh.OrderService.GetOrderRepository()
+
+	tx, err := orderRepository.DBStorage.Conn.BeginTx(
+		orderRepository.DBStorage.Ctx, pgx.TxOptions{})
 
 	if err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
@@ -60,17 +63,17 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if user, err = uh.UserService.RegisterUser(user); err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		_ = tx.Rollback(uh.OrderService.OrderRepository.DBStorage.Ctx)
+		_ = tx.Rollback(orderRepository.DBStorage.Ctx)
 		return
 	}
 
 	if err = uh.UserBalanceService.CreateUserBalance(user); err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		_ = tx.Rollback(uh.OrderService.OrderRepository.DBStorage.Ctx)
+		_ = tx.Rollback(orderRepository.DBStorage.Ctx)
 		return
 	}
 
-	if err := tx.Commit(uh.OrderService.OrderRepository.DBStorage.Ctx); err != nil {
+	if err := tx.Commit(orderRepository.DBStorage.Ctx); err != nil {
 		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
 		return
 	}
@@ -142,7 +145,10 @@ func generateToken(user models.User) (string, error) {
 func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(middleware.UsernameKey).(string)
 
-	userID := uh.UserService.UserRepository.IsUserExists(username)
+	userRepository := uh.UserService.GetUserRepository()
+	orderRepository := uh.OrderService.GetOrderRepository()
+
+	userID := userRepository.IsUserExists(username)
 
 	if userID < 0 {
 		http.Error(w, "пользователь не найден", http.StatusNotFound)
@@ -196,8 +202,8 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 
 	go func() {
-		tx, err := uh.OrderService.OrderRepository.DBStorage.Conn.BeginTx(
-			uh.OrderService.OrderRepository.DBStorage.Ctx, pgx.TxOptions{})
+		tx, err := orderRepository.DBStorage.Conn.BeginTx(
+			orderRepository.DBStorage.Ctx, pgx.TxOptions{})
 
 		if err != nil {
 			http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
@@ -216,7 +222,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 			err = uh.OrderService.UpdateOrder(orderNumber, registerResponse.Accrual, registerResponse.Status)
 
 			if err != nil {
-				_ = tx.Rollback(uh.OrderService.OrderRepository.DBStorage.Ctx)
+				_ = tx.Rollback(orderRepository.DBStorage.Ctx)
 				http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 				return
 			}
@@ -224,7 +230,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 			err = uh.UserBalanceService.UpdateUserBalance(registerResponse.Accrual, userID)
 
 			if err != nil {
-				_ = tx.Rollback(uh.OrderService.OrderRepository.DBStorage.Ctx)
+				_ = tx.Rollback(orderRepository.DBStorage.Ctx)
 				http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 				return
 			}
@@ -240,7 +246,9 @@ func isDigits(s string) bool {
 func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(middleware.UsernameKey).(string)
 
-	userID := uh.UserService.UserRepository.IsUserExists(username)
+	userRepository := uh.UserService.GetUserRepository()
+
+	userID := userRepository.IsUserExists(username)
 
 	if userID < 0 {
 		http.Error(w, "пользователь не найден", http.StatusNotFound)
@@ -275,7 +283,9 @@ func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(middleware.UsernameKey).(string)
 
-	userID := uh.UserService.UserRepository.IsUserExists(username)
+	userRepository := uh.UserService.GetUserRepository()
+
+	userID := userRepository.IsUserExists(username)
 
 	if userID < 0 {
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)
@@ -310,7 +320,9 @@ func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(middleware.UsernameKey).(string)
 
-	userID := uh.UserService.UserRepository.IsUserExists(username)
+	userRepository := uh.UserService.GetUserRepository()
+
+	userID := userRepository.IsUserExists(username)
 
 	if userID < 0 {
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)
@@ -369,7 +381,9 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(middleware.UsernameKey).(string)
 
-	userID := uh.UserService.UserRepository.IsUserExists(username)
+	userRepository := uh.UserService.GetUserRepository()
+
+	userID := userRepository.IsUserExists(username)
 
 	if userID < 0 {
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)

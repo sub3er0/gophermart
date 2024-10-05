@@ -94,10 +94,10 @@ func main() {
 		UserBalanceRepository: &userBalanceRepository,
 	}
 	userHandler := handlers.UserHandler{
-		UserService:          userService,
-		OrderService:         orderService,
-		WithdrawService:      withdrawService,
-		UserBalanceService:   userBalanceService,
+		UserService:          &userService,
+		OrderService:         &orderService,
+		WithdrawService:      &withdrawService,
+		UserBalanceService:   &userBalanceService,
 		AccrualSystemAddress: cfg.AccrualSystemAddress,
 	}
 

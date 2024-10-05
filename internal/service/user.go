@@ -2,6 +2,7 @@ package service
 
 import (
 	"golang.org/x/crypto/bcrypt"
+	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
 )
@@ -44,4 +45,8 @@ func (us *UserService) AuthenticateUser(username, password string) (models.User,
 	}
 
 	return user, nil
+}
+
+func (us *UserService) GetUserRepository() interfaces.UserRepositoryInterface {
+	return us.UserRepository
 }

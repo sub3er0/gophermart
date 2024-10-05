@@ -1,6 +1,7 @@
 package service
 
 import (
+	"gophermart/internal/interfaces"
 	"gophermart/internal/repository"
 )
 
@@ -22,4 +23,8 @@ func (or *OrderService) UpdateOrder(orderNumber string, accrual float32, status 
 
 func (or *OrderService) GetUserOrders(userID int) ([]repository.OrderData, error) {
 	return or.OrderRepository.GetUserOrders(userID)
+}
+
+func (or *OrderService) GetOrderRepository() interfaces.OrderRepositoryInterface {
+	return or.OrderRepository
 }
