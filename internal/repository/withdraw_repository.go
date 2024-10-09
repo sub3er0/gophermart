@@ -3,18 +3,13 @@ package repository
 import (
 	"fmt"
 	"github.com/jackc/pgx/v4"
+	"gophermart/internal/interfaces"
 	"gophermart/storage"
 	"time"
 )
 
 type WithdrawRepository struct {
 	DBStorage *storage.PgStorage
-}
-
-type WithdrawInfo struct {
-	OrderNumber string    `json:"order"`
-	Sum         float32   `json:"sum"`
-	ProcessedAt time.Time `json:"processed_at"`
 }
 
 func (wr *WithdrawRepository) Withdraw(userID int, orderNumber string, sum float32) (int, error) {
@@ -63,8 +58,8 @@ func (wr *WithdrawRepository) Withdraw(userID int, orderNumber string, sum float
 	return 0, nil
 }
 
-func (wr *WithdrawRepository) Withdrawals(userID int) ([]WithdrawInfo, error) {
-	var withdrawalInfoArray []WithdrawInfo
+func (wr *WithdrawRepository) Withdrawals(userID int) ([]interfaces.WithdrawInfo, error) {
+	var withdrawalInfoArray []interfaces.WithdrawInfo
 
 	query := "SELECT order_number, sum, created_at FROM withdrawal WHERE user_id = $1 ORDER BY created_at DESC"
 	rows, err := wr.DBStorage.Conn.Query(wr.DBStorage.Ctx, query, userID)
@@ -75,7 +70,7 @@ func (wr *WithdrawRepository) Withdrawals(userID int) ([]WithdrawInfo, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var withdrawalInfo WithdrawInfo
+		var withdrawalInfo interfaces.WithdrawInfo
 		if err := rows.Scan(&withdrawalInfo.OrderNumber, &withdrawalInfo.Sum, &withdrawalInfo.ProcessedAt); err != nil {
 			return withdrawalInfoArray, err
 		}

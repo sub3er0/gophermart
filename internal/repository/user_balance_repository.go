@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/storage"
 )
@@ -16,8 +17,8 @@ func (ubr *UserBalanceRepository) UpdateUserBalance(accrual float32, userID int)
 	return err
 }
 
-func (ubr *UserBalanceRepository) GetUserBalance(userID int) (UserBalance, error) {
-	var userBalance UserBalance
+func (ubr *UserBalanceRepository) GetUserBalance(userID int) (interfaces.UserBalance, error) {
+	var userBalance interfaces.UserBalance
 
 	query := "SELECT current, withdrawn FROM user_balance WHERE user_id = $1"
 	rows, err := ubr.DBStorage.Conn.Query(ubr.DBStorage.Ctx, query, userID)

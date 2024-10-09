@@ -1,6 +1,7 @@
 package service
 
 import (
+	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
 )
@@ -13,7 +14,7 @@ func (ubs *UserBalanceService) UpdateUserBalance(accrual float32, userID int) er
 	return ubs.UserBalanceRepository.UpdateUserBalance(accrual, userID)
 }
 
-func (ubs *UserBalanceService) GetUserBalance(userID int) (repository.UserBalance, error) {
+func (ubs *UserBalanceService) GetUserBalance(userID int) (interfaces.UserBalance, error) {
 	return ubs.UserBalanceRepository.GetUserBalance(userID)
 }
 

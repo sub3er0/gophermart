@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/storage"
 	"time"
@@ -8,6 +9,10 @@ import (
 
 type UserRepository struct {
 	DBStorage *storage.PgStorage
+}
+
+func (ur *UserRepository) GetDBStorage() interfaces.DBStorageInterface {
+	return &storage.PgStorage{}
 }
 
 func (ur *UserRepository) CreateUser(user models.User) (int, error) {

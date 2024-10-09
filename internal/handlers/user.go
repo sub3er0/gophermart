@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/jackc/pgx/v4"
 	"gophermart/internal/accrual"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
@@ -52,9 +51,9 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderRepository := uh.OrderService.GetOrderRepository()
+	dbStorage := orderRepository.GetDBStorage()
 
-	tx, err := orderRepository.DBStorage.Conn.BeginTx(
-		orderRepository.DBStorage.Ctx, pgx.TxOptions{})
+	err := dbStorage.BeginTransaction()
 
 	if err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
@@ -63,17 +62,17 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if user, err = uh.UserService.RegisterUser(user); err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		_ = tx.Rollback(orderRepository.DBStorage.Ctx)
+		_ = dbStorage.Rollback()
 		return
 	}
 
 	if err = uh.UserBalanceService.CreateUserBalance(user); err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		_ = tx.Rollback(orderRepository.DBStorage.Ctx)
+		_ = dbStorage.Rollback()
 		return
 	}
 
-	if err := tx.Commit(orderRepository.DBStorage.Ctx); err != nil {
+	if err := dbStorage.Commit(); err != nil {
 		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
 		return
 	}
@@ -146,7 +145,6 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value(middleware.UsernameKey).(string)
 
 	userRepository := uh.UserService.GetUserRepository()
-	orderRepository := uh.OrderService.GetOrderRepository()
 
 	userID := userRepository.IsUserExists(username)
 
@@ -202,8 +200,9 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 
 	go func() {
-		tx, err := orderRepository.DBStorage.Conn.BeginTx(
-			orderRepository.DBStorage.Ctx, pgx.TxOptions{})
+		orderRepository := uh.OrderService.GetOrderRepository()
+		dbStorage := orderRepository.GetDBStorage()
+		err := dbStorage.BeginTransaction()
 
 		if err != nil {
 			http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
@@ -222,7 +221,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 			err = uh.OrderService.UpdateOrder(orderNumber, registerResponse.Accrual, registerResponse.Status)
 
 			if err != nil {
-				_ = tx.Rollback(orderRepository.DBStorage.Ctx)
+				_ = dbStorage.Rollback()
 				http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 				return
 			}
@@ -230,7 +229,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 			err = uh.UserBalanceService.UpdateUserBalance(registerResponse.Accrual, userID)
 
 			if err != nil {
-				_ = tx.Rollback(orderRepository.DBStorage.Ctx)
+				_ = dbStorage.Rollback()
 				http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 				return
 			}

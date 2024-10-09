@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"gophermart/internal/interfaces"
 	"gophermart/storage"
 	"time"
 )
@@ -16,16 +17,8 @@ type OrderRepository struct {
 	DBStorage *storage.PgStorage
 }
 
-type OrderData struct {
-	Number     string    `json:"number"`
-	Status     string    `json:"status"`
-	Accrual    float32   `json:"accrual"`
-	UploadedAt time.Time `json:"uploaded_at"`
-}
-
-type UserBalance struct {
-	Current   float32 `json:"current"`
-	Withdrawn float32 `json:"withdrawn"`
+func (or *OrderRepository) GetDBStorage() interfaces.DBStorageInterface {
+	return &storage.PgStorage{}
 }
 
 func (or *OrderRepository) IsOrderExist(orderNumber string, userID int) (int, error) {
@@ -66,8 +59,8 @@ func (or *OrderRepository) UpdateOrder(orderNumber string, accrual float32, stat
 	return err
 }
 
-func (or *OrderRepository) GetUserOrders(userID int) ([]OrderData, error) {
-	var orders []OrderData
+func (or *OrderRepository) GetUserOrders(userID int) ([]interfaces.OrderData, error) {
+	var orders []interfaces.OrderData
 
 	query := "SELECT number, status, accrual, created_at FROM orders WHERE user_id = $1 ORDER BY updated_at DESC"
 	rows, err := or.DBStorage.Conn.Query(or.DBStorage.Ctx, query, userID)
@@ -78,7 +71,7 @@ func (or *OrderRepository) GetUserOrders(userID int) ([]OrderData, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var order OrderData
+		var order interfaces.OrderData
 		if err := rows.Scan(&order.Number, &order.Status, &order.Accrual, &order.UploadedAt); err != nil {
 			return nil, err
 		}

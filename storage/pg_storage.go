@@ -9,8 +9,9 @@ import (
 )
 
 type PgStorage struct {
-	Conn *pgxpool.Pool
-	Ctx  context.Context
+	Conn        *pgxpool.Pool
+	Ctx         context.Context
+	transaction pgx.Tx
 }
 
 func (pgs *PgStorage) Init(connectionString string) error {
@@ -40,4 +41,20 @@ func (pgs *PgStorage) Select(query string, args ...interface{}) (pgx.Rows, error
 
 func (pgs *PgStorage) Close() {
 	pgs.Conn.Close()
+}
+
+func (pgs *PgStorage) BeginTransaction() error {
+	var err error
+	pgs.transaction, err = pgs.Conn.BeginTx(
+		pgs.Ctx, pgx.TxOptions{})
+
+	return err
+}
+
+func (pgs *PgStorage) Rollback() error {
+	return pgs.transaction.Rollback(pgs.Ctx)
+}
+
+func (pgs *PgStorage) Commit() error {
+	return pgs.transaction.Commit(pgs.Ctx)
 }

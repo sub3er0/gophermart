@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	PgsStorage := &storage.PgStorage{}
+	pgsStorage := &storage.PgStorage{}
 	cfg, err := config.InitConfig()
 
 	if err != nil {
@@ -59,36 +59,38 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to migrate database: %v", err)
 		}
+	} else {
+		log.Fatalf("Error while initializing db connection: %v", err)
 	}
 
-	err = PgsStorage.Init(cfg.DatabaseDsn)
+	err = pgsStorage.Init(cfg.DatabaseDsn)
 
 	if err != nil {
 		log.Fatalf("Error while initializing db connection: %v", err)
 	}
 
-	defer PgsStorage.Close()
+	defer pgsStorage.Close()
 
 	userRepository := repository.UserRepository{
-		DBStorage: PgsStorage,
+		DBStorage: pgsStorage,
 	}
 	userService := service.UserService{
 		UserRepository: &userRepository,
 	}
 	orderRepository := repository.OrderRepository{
-		DBStorage: PgsStorage,
+		DBStorage: pgsStorage,
 	}
 	orderService := service.OrderService{
 		OrderRepository: &orderRepository,
 	}
 	withdrawRepository := repository.WithdrawRepository{
-		DBStorage: PgsStorage,
+		DBStorage: pgsStorage,
 	}
 	withdrawService := service.WithdrawService{
 		WithdrawRepository: &withdrawRepository,
 	}
 	userBalanceRepository := repository.UserBalanceRepository{
-		DBStorage: PgsStorage,
+		DBStorage: pgsStorage,
 	}
 	userBalanceService := service.UserBalanceService{
 		UserBalanceRepository: &userBalanceRepository,

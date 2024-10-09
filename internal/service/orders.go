@@ -21,7 +21,7 @@ func (or *OrderService) UpdateOrder(orderNumber string, accrual float32, status 
 	return or.OrderRepository.UpdateOrder(orderNumber, accrual, status)
 }
 
-func (or *OrderService) GetUserOrders(userID int) ([]repository.OrderData, error) {
+func (or *OrderService) GetUserOrders(userID int) ([]interfaces.OrderData, error) {
 	return or.OrderRepository.GetUserOrders(userID)
 }
 
