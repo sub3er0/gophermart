@@ -8,6 +8,7 @@ import (
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -21,6 +22,7 @@ type UserHandler struct {
 	WithdrawService      interfaces.WithdrawRepositoryInterface
 	UserBalanceService   interfaces.UserBalanceRepositoryInterface
 	AccrualSystemAddress string
+	DbConnectionString   string
 }
 
 type Withdraw struct {
@@ -52,8 +54,13 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	orderRepository := uh.OrderService.GetOrderRepository()
 	dbStorage := orderRepository.GetDBStorage()
+	err := dbStorage.Init(uh.DbConnectionString)
 
-	err := dbStorage.BeginTransaction()
+	if err != nil {
+		log.Fatalf("Error while initializing db connection: %v", err)
+	}
+
+	err = dbStorage.BeginTransaction()
 
 	if err != nil {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
@@ -91,6 +98,8 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   3600,
 	})
+
+	dbStorage.Close()
 
 	w.Header().Set("Authorization", token)
 	w.WriteHeader(http.StatusOK)
@@ -202,6 +211,13 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		orderRepository := uh.OrderService.GetOrderRepository()
 		dbStorage := orderRepository.GetDBStorage()
+
+		err = dbStorage.Init(uh.DbConnectionString)
+
+		if err != nil {
+			log.Fatalf("Error while initializing db connection: %v", err)
+		}
+
 		err := dbStorage.BeginTransaction()
 
 		if err != nil {
