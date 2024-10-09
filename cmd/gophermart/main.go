@@ -101,7 +101,7 @@ func main() {
 		WithdrawService:      &withdrawService,
 		UserBalanceService:   &userBalanceService,
 		AccrualSystemAddress: cfg.AccrualSystemAddress,
-		DbConnectionString:   cfg.DatabaseDsn,
+		DBConnectionString:   cfg.DatabaseDsn,
 	}
 
 	r := chi.NewRouter()

@@ -22,7 +22,7 @@ type UserHandler struct {
 	WithdrawService      interfaces.WithdrawRepositoryInterface
 	UserBalanceService   interfaces.UserBalanceRepositoryInterface
 	AccrualSystemAddress string
-	DbConnectionString   string
+	DBConnectionString   string
 }
 
 type Withdraw struct {
@@ -54,7 +54,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	orderRepository := uh.OrderService.GetOrderRepository()
 	dbStorage := orderRepository.GetDBStorage()
-	err := dbStorage.Init(uh.DbConnectionString)
+	err := dbStorage.Init(uh.DBConnectionString)
 
 	if err != nil {
 		log.Fatalf("Error while initializing db connection: %v", err)
@@ -212,7 +212,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 		orderRepository := uh.OrderService.GetOrderRepository()
 		dbStorage := orderRepository.GetDBStorage()
 
-		err = dbStorage.Init(uh.DbConnectionString)
+		err = dbStorage.Init(uh.DBConnectionString)
 
 		if err != nil {
 			log.Fatalf("Error while initializing db connection: %v", err)
