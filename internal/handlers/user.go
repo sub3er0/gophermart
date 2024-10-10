@@ -7,6 +7,7 @@ import (
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
+	"gophermart/internal/repository"
 	"io"
 	"log"
 	"net/http"
@@ -37,7 +38,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	userID := userRepository.GetUserID(user.Username)
 
-	if userID == -2 {
+	if userID == repository.DatabaseError {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
 		return
 	}
@@ -369,12 +370,12 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	var code int
 	code, err = uh.WithdrawService.Withdraw(userID, withdraw.Order, withdraw.Sum)
 
-	if code == -1 {
+	if code == repository.WithdrawTransactionError {
 		http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 		return
 	}
 
-	if code == -2 {
+	if code == repository.NotEnoughFound {
 		http.Error(w, "На счету недостаточно средств", http.StatusPaymentRequired)
 		return
 	}
