@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/shopspring/decimal"
 	"gophermart/internal/accrual"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
@@ -24,11 +23,6 @@ type UserHandler struct {
 	UserBalanceService   interfaces.UserBalanceRepositoryInterface
 	AccrualSystemAddress string
 	DBConnectionString   string
-}
-
-type Withdraw struct {
-	Order string          `json:"order"`
-	Sum   decimal.Decimal `json:"sum"`
 }
 
 func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +339,7 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var withdraw Withdraw
+	var withdraw models.Withdraw
 	err := json.NewDecoder(r.Body).Decode(&withdraw)
 
 	if err != nil {
