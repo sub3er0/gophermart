@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"github.com/jackc/pgx/v4"
+	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/storage"
 	"time"
@@ -12,8 +13,8 @@ type WithdrawRepository struct {
 	DBStorage *storage.PgStorage
 }
 
-func (wr *WithdrawRepository) Withdraw(userID int, orderNumber string, sum float32) (int, error) {
-	var userBalance float32
+func (wr *WithdrawRepository) Withdraw(userID int, orderNumber string, sum decimal.Decimal) (int, error) {
+	var userBalance decimal.Decimal
 	tx, err := wr.DBStorage.Conn.BeginTx(wr.DBStorage.Ctx, pgx.TxOptions{})
 
 	if err != nil {
@@ -32,7 +33,7 @@ func (wr *WithdrawRepository) Withdraw(userID int, orderNumber string, sum float
 		return -1, err
 	}
 
-	if userBalance < sum {
+	if userBalance.LessThan(sum) {
 		return -2, nil
 	}
 

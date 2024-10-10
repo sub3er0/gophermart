@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/go-resty/resty/v2"
 	"github.com/shopspring/decimal"
+	"net/http"
 )
 
 type RegisterResponse struct {
@@ -25,7 +26,7 @@ func GetOrderInfo(accrualServerAddress string, orderNumber string) (RegisterResp
 		return registerResponse, err
 	}
 
-	if resp.StatusCode() != 200 {
+	if resp.StatusCode() != http.StatusOK {
 		return registerResponse, err
 	}
 
