@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/storage"
 	"time"
@@ -21,7 +22,7 @@ func (or *OrderRepository) GetDBStorage() interfaces.DBStorageInterface {
 	return &storage.PgStorage{}
 }
 
-func (or *OrderRepository) IsOrderExist(orderNumber string, userID int) (int, error) {
+func (or *OrderRepository) GetOrderID(orderNumber string, userID int) (int, error) {
 	var id, orderUserID int
 	query := "SELECT id, user_id FROM orders WHERE number = $1"
 	err := or.DBStorage.Conn.QueryRow(or.DBStorage.Ctx, query, orderNumber).Scan(&id, &orderUserID)
@@ -50,7 +51,7 @@ func (or *OrderRepository) SaveOrder(orderNumber string, userID int) error {
 	return err
 }
 
-func (or *OrderRepository) UpdateOrder(orderNumber string, accrual float32, status string) error {
+func (or *OrderRepository) UpdateOrder(orderNumber string, accrual decimal.Decimal, status string) error {
 	currentTime := time.Now()
 
 	query := "UPDATE orders SET status = $1, accrual = $2, updated_at = $3 WHERE number = $4"

@@ -3,12 +3,13 @@ package accrual
 import (
 	"encoding/json"
 	"github.com/go-resty/resty/v2"
+	"github.com/shopspring/decimal"
 )
 
 type RegisterResponse struct {
-	Order   string  `json:"order"`
-	Status  string  `json:"status"`
-	Accrual float32 `json:"accrual"`
+	Order   string          `json:"order"`
+	Status  string          `json:"status"`
+	Accrual decimal.Decimal `json:"accrual"`
 }
 
 func GetOrderInfo(accrualServerAddress string, orderNumber string) (RegisterResponse, error) {

@@ -1,11 +1,12 @@
 package interfaces
 
 import (
+	"github.com/shopspring/decimal"
 	"gophermart/internal/models"
 )
 
 type UserBalanceRepositoryInterface interface {
-	UpdateUserBalance(accrual float32, userID int) error
+	UpdateUserBalance(accrual decimal.Decimal, userID int) error
 	GetUserBalance(userID int) (UserBalance, error)
 	CreateUserBalance(user models.User) error
 }

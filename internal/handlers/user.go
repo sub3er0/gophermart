@@ -40,7 +40,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	userRepository := uh.UserService.GetUserRepository()
 
-	userID := userRepository.IsUserExists(user.Username)
+	userID := userRepository.GetUserID(user.Username)
 
 	if userID == -2 {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
@@ -155,7 +155,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 
 	userRepository := uh.UserService.GetUserRepository()
 
-	userID := userRepository.IsUserExists(username)
+	userID := userRepository.GetUserID(username)
 
 	if userID < 0 {
 		http.Error(w, "пользователь не найден", http.StatusNotFound)
@@ -184,7 +184,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := uh.OrderService.IsOrderExist(orderNumber, userID)
+	result, err := uh.OrderService.GetOrderID(orderNumber, userID)
 
 	if err != nil {
 		http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
@@ -263,7 +263,7 @@ func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 
 	userRepository := uh.UserService.GetUserRepository()
 
-	userID := userRepository.IsUserExists(username)
+	userID := userRepository.GetUserID(username)
 
 	if userID < 0 {
 		http.Error(w, "пользователь не найден", http.StatusNotFound)
@@ -300,7 +300,7 @@ func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 
 	userRepository := uh.UserService.GetUserRepository()
 
-	userID := userRepository.IsUserExists(username)
+	userID := userRepository.GetUserID(username)
 
 	if userID < 0 {
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)
@@ -337,7 +337,7 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	userRepository := uh.UserService.GetUserRepository()
 
-	userID := userRepository.IsUserExists(username)
+	userID := userRepository.GetUserID(username)
 
 	if userID < 0 {
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)
@@ -359,7 +359,7 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := uh.OrderService.IsOrderExist(withdraw.Order, userID)
+	result, err := uh.OrderService.GetOrderID(withdraw.Order, userID)
 
 	if err != nil {
 		http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
@@ -398,7 +398,7 @@ func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 
 	userRepository := uh.UserService.GetUserRepository()
 
-	userID := userRepository.IsUserExists(username)
+	userID := userRepository.GetUserID(username)
 
 	if userID < 0 {
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)

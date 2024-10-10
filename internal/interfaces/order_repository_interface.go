@@ -1,13 +1,14 @@
 package interfaces
 
 import (
+	"github.com/shopspring/decimal"
 	"time"
 )
 
 type OrderRepositoryInterface interface {
-	IsOrderExist(orderNumber string, userID int) (int, error)
+	GetOrderID(orderNumber string, userID int) (int, error)
 	SaveOrder(orderNumber string, userID int) error
-	UpdateOrder(orderNumber string, accrual float32, status string) error
+	UpdateOrder(orderNumber string, accrual decimal.Decimal, status string) error
 	GetUserOrders(userID int) ([]OrderData, error)
 	GetDBStorage() DBStorageInterface
 }

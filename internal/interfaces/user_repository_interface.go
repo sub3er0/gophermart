@@ -6,7 +6,7 @@ import (
 
 type UserRepositoryInterface interface {
 	CreateUser(user models.User) (int, error)
-	IsUserExists(username string) int
+	GetUserID(username string) int
 	GetUserByUsername(username string) (models.User, error)
 	GetDBStorage() DBStorageInterface
 }

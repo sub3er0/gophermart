@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
@@ -10,7 +11,7 @@ type UserBalanceService struct {
 	UserBalanceRepository *repository.UserBalanceRepository
 }
 
-func (ubs *UserBalanceService) UpdateUserBalance(accrual float32, userID int) error {
+func (ubs *UserBalanceService) UpdateUserBalance(accrual decimal.Decimal, userID int) error {
 	return ubs.UserBalanceRepository.UpdateUserBalance(accrual, userID)
 }
 

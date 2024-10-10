@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/storage"
@@ -10,7 +11,7 @@ type UserBalanceRepository struct {
 	DBStorage *storage.PgStorage
 }
 
-func (ubr *UserBalanceRepository) UpdateUserBalance(accrual float32, userID int) error {
+func (ubr *UserBalanceRepository) UpdateUserBalance(accrual decimal.Decimal, userID int) error {
 	query := "UPDATE user_balance SET current = current + $1 WHERE user_id = $2"
 	_, err := ubr.DBStorage.Conn.Exec(ubr.DBStorage.Ctx, query, accrual, userID)
 
