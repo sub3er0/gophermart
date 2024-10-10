@@ -11,7 +11,7 @@ type WithdrawRepositoryInterface interface {
 }
 
 type WithdrawInfo struct {
-	OrderNumber string          `json:"order"`
-	Sum         decimal.Decimal `json:"sum"`
-	ProcessedAt time.Time       `json:"processed_at"`
+	OrderNumber string    `json:"order"`
+	Sum         float32   `json:"sum"`
+	ProcessedAt time.Time `json:"processed_at"`
 }
