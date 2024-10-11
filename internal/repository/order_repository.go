@@ -36,9 +36,9 @@ func (or *OrderRepository) GetOrderID(orderNumber string, userID int) (int, erro
 	}
 
 	if orderUserID != userID {
-		return 1, nil
+		return OrderLoadedByAnotherUser, nil
 	} else {
-		return 2, nil
+		return OrderLoaderByThisUser, nil
 	}
 }
 

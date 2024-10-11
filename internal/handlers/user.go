@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"gophermart/internal/accrual"
@@ -14,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -170,13 +172,13 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	orderNumber := string(body)
 	isDigit := isDigits(orderNumber)
 
-	if !ValidateNumber(orderNumber) {
-		http.Error(w, "Неверный формат номера заказа", http.StatusUnprocessableEntity)
+	if !isDigit {
+		http.Error(w, "Неверный формат запроса", http.StatusBadRequest)
 		return
 	}
 
-	if !isDigit {
-		http.Error(w, "Неверный формат запроса", http.StatusBadRequest)
+	if !ValidateNumber(orderNumber) {
+		http.Error(w, "Неверный формат номера заказа", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -187,10 +189,10 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result == 1 {
+	if result == repository.OrderLoadedByAnotherUser {
 		http.Error(w, "Номер заказа уже был загружен другим пользователем", http.StatusConflict)
 		return
-	} else if result == 2 {
+	} else if result == repository.OrderLoaderByThisUser {
 		http.Error(w, "Номер заказа уже был загружен этим пользователем", http.StatusOK)
 		return
 	}
@@ -204,49 +206,63 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
+		defer wg.Done()
+
+		_, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
 		orderRepository := uh.OrderService.GetOrderRepository()
 		dbStorage := orderRepository.GetDBStorage()
 
-		err = dbStorage.Init(uh.DBConnectionString)
-
-		if err != nil {
-			log.Fatalf("Error while initializing db connection: %v", err)
+		if err := dbStorage.Init(uh.DBConnectionString); err != nil {
+			log.Printf("Error while initializing db connection: %v", err)
+			return
 		}
 
-		err := dbStorage.BeginTransaction()
-
-		if err != nil {
-			http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
+		if err := dbStorage.BeginTransaction(); err != nil {
+			log.Printf("Failed to begin transaction: %v", err)
 			return
 		}
 
 		var registerResponse accrual.RegisterResponse
-		registerResponse, err = accrual.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
-
+		registerResponse, err := accrual.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
 		if err != nil {
-			http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
+			log.Printf("Failed to get order info: %v", err)
+			_ = dbStorage.Rollback()
 			return
 		}
 
 		if registerResponse.Order != "" {
-			err = uh.OrderService.UpdateOrder(orderNumber, registerResponse.Accrual, registerResponse.Status)
-
-			if err != nil {
+			if err := uh.OrderService.UpdateOrder(orderNumber, registerResponse.Accrual, registerResponse.Status); err != nil {
 				_ = dbStorage.Rollback()
-				http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
+				log.Printf("Failed to update order: %v", err)
 				return
 			}
 
-			err = uh.UserBalanceService.UpdateUserBalance(registerResponse.Accrual, userID)
-
-			if err != nil {
+			if err := uh.UserBalanceService.UpdateUserBalance(registerResponse.Accrual, userID); err != nil {
 				_ = dbStorage.Rollback()
-				http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
+				log.Printf("Failed to update user balance: %v", err)
 				return
+			}
+
+			// Здесь можно выполнить коммит после успешных операций
+			if err := dbStorage.Commit(); err != nil {
+				log.Printf("Failed to commit transaction: %v", err)
+				return
+			}
+		} else {
+			log.Printf("Order not found in accrual service")
+			if err := dbStorage.Rollback(); err != nil {
+				log.Printf("Failed to rollback transaction: %v", err)
 			}
 		}
 	}()
+
+	wg.Wait()
 }
 
 func isDigits(s string) bool {
