@@ -139,7 +139,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func generateToken(user models.User) (string, error) {
 	claims := jwt.MapClaims{
-		"ID":  user.ID,
+		"id":  user.ID,
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

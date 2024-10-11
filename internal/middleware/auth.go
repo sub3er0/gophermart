@@ -17,7 +17,7 @@ type Credentials struct {
 }
 
 type Claims struct {
-	ID string `json:"ID"`
+	ID int `json:"id"`
 	jwt.StandardClaims
 }
 
