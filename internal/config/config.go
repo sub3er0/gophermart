@@ -8,7 +8,6 @@ import (
 
 type Config struct {
 	ServerAddress        string
-	BaseURL              string
 	DatabaseDsn          string
 	AccrualSystemAddress string
 }
@@ -26,10 +25,6 @@ func InitConfig() (*Config, error) {
 
 	if ServerAddress := os.Getenv("RUN_ADDRESS"); ServerAddress != "" {
 		cfg.ServerAddress = ServerAddress
-	}
-
-	if BaseURL := os.Getenv("BASE_URL"); BaseURL != "" {
-		cfg.BaseURL = BaseURL
 	}
 
 	if DatabaseDsn := os.Getenv("DATABASE_URI"); DatabaseDsn != "" {

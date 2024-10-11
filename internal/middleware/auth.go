@@ -9,7 +9,7 @@ import (
 type contextKey string
 
 const SecretKey = "sectet_key"
-const UsernameKey contextKey = "username"
+const UserIDKey contextKey = "ID"
 
 type Credentials struct {
 	Username string `json:"login"`
@@ -17,7 +17,7 @@ type Credentials struct {
 }
 
 type Claims struct {
-	Username string `json:"username"`
+	ID string `json:"ID"`
 	jwt.StandardClaims
 }
 
@@ -49,7 +49,7 @@ func TokenAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), UsernameKey, claims.Username)
+		ctx := context.WithValue(r.Context(), UserIDKey, claims.ID)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})
