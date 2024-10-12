@@ -10,6 +10,7 @@ import (
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
+	"gophermart/internal/service"
 	"io"
 	"log"
 	"net/http"
@@ -38,7 +39,6 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userRepository := uh.UserService.GetUserRepository()
-
 	userID := userRepository.GetUserID(user.Username)
 
 	if userID == repository.DatabaseError {
@@ -51,35 +51,20 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderRepository := uh.OrderService.GetOrderRepository()
-	dbStorage := orderRepository.GetDBStorage()
-	err := dbStorage.Init(uh.DBConnectionString)
+	err := uh.UserService.RegisterUser(user, uh.UserBalanceService)
 
 	if err != nil {
-		log.Fatalf("Error while initializing db connection: %v", err)
-	}
+		if errors.Is(err, service.ErrDb) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	err = dbStorage.BeginTransaction()
+		if errors.Is(err, service.ErrFailedToRegister) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	if err != nil {
-		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		return
-	}
-
-	if user, err = uh.UserService.RegisterUser(user); err != nil {
-		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		_ = dbStorage.Rollback()
-		return
-	}
-
-	if err = uh.UserBalanceService.CreateUserBalance(user); err != nil {
-		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		_ = dbStorage.Rollback()
-		return
-	}
-
-	if err := dbStorage.Commit(); err != nil {
-		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 		return
 	}
 
@@ -97,8 +82,6 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   3600,
 	})
-
-	dbStorage.Close()
 
 	w.Header().Set("Authorization", token)
 	w.WriteHeader(http.StatusOK)

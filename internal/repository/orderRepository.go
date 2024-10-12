@@ -20,7 +20,7 @@ type OrderRepository struct {
 }
 
 var (
-	ErrNoOrdersFound = errors.New("no orders found for the given user ID")
+	ErrNoOrdersFound = errors.New("не найдено заказов для переданного userID")
 )
 
 func (or *OrderRepository) GetDBStorage() interfaces.DBStorageInterface {
