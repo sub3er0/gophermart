@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"gophermart/internal/accrual"
 	"gophermart/internal/interfaces"
@@ -285,6 +286,11 @@ func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	orderData, err := uh.OrderService.GetUserOrders(userID)
 
 	if err != nil {
+		if errors.Is(err, repository.ErrNoOrdersFound) {
+			http.Error(w, err.Error(), http.StatusNoContent)
+			return
+		}
+
 		http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 		return
 	}

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/storage"
@@ -17,6 +18,10 @@ const (
 type OrderRepository struct {
 	DBStorage *storage.PgStorage
 }
+
+var (
+	ErrNoOrdersFound = errors.New("no orders found for the given user ID")
+)
 
 func (or *OrderRepository) GetDBStorage() interfaces.DBStorageInterface {
 	return &storage.PgStorage{}
@@ -80,7 +85,7 @@ func (or *OrderRepository) GetUserOrders(userID int) ([]interfaces.OrderData, er
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, ErrNoOrdersFound
 	}
 
 	return orders, nil
