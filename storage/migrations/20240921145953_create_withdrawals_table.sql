@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS withdrawal (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE INDEX idx_withdrawal_user_id ON withdrawal(user_id);
 -- +goose Down
 -- +goose StatementBegin
 SELECT 'down SQL query';
