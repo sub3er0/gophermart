@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrFailedToRegister = errors.New("failed to register user")
-	ErrDb               = errors.New("internal database error")
+	ErrDB               = errors.New("internal database error")
 )
 
 type UserService struct {
@@ -75,7 +75,7 @@ func (us *UserService) RegisterUser(user models.User, userBalanceRepository inte
 	err = dbStorage.BeginTransaction()
 
 	if err != nil {
-		return ErrDb
+		return ErrDB
 	}
 
 	if user, err = us.CreateUser(user); err != nil {
@@ -89,7 +89,7 @@ func (us *UserService) RegisterUser(user models.User, userBalanceRepository inte
 	}
 
 	if err := dbStorage.Commit(); err != nil {
-		return ErrDb
+		return ErrDB
 	}
 
 	dbStorage.Close()

@@ -54,7 +54,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	err := uh.UserService.RegisterUser(user, uh.UserBalanceService)
 
 	if err != nil {
-		if errors.Is(err, service.ErrDb) {
+		if errors.Is(err, service.ErrDB) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
