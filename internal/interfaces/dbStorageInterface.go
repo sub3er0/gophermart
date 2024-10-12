@@ -1,13 +1,13 @@
 package interfaces
 
 import (
-	"database/sql"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 )
 
 type DBStorageInterface interface {
 	Init(connectionString string) error
-	Exec(query string, args ...interface{}) (sql.Result, error)
+	Exec(query string, args ...interface{}) (pgconn.CommandTag, error)
 	Select(query string, args ...interface{}) (pgx.Rows, error)
 	Close()
 	BeginTransaction() error

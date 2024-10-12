@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"database/sql"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"log"
@@ -26,8 +26,8 @@ func (pgs *PgStorage) Init(connectionString string) error {
 	return nil
 }
 
-func (pgs *PgStorage) Exec(query string, args ...interface{}) (sql.Result, error) {
-	return nil, nil
+func (pgs *PgStorage) Exec(query string, args ...interface{}) (pgconn.CommandTag, error) {
+	return pgs.Conn.Exec(pgs.Ctx, query, args...)
 }
 
 func (pgs *PgStorage) Select(query string, args ...interface{}) (pgx.Rows, error) {

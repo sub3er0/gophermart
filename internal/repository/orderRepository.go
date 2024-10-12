@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/storage"
@@ -51,11 +52,16 @@ func (or *OrderRepository) GetOrderID(orderNumber string, userID int) (int, erro
 func (or *OrderRepository) SaveOrder(orderNumber string, userID int) error {
 	currentTime := time.Now()
 	dbStorage := or.GetDBStorage()
-	dbStorage.Init(or.ConnectionString)
+	err := dbStorage.Init(or.ConnectionString)
+
+	if err != nil {
+		return fmt.Errorf("failed to initialize db storage: %w", err)
+	}
+
+	defer dbStorage.Close()
 
 	query := "INSERT INTO orders (number, user_id, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)"
-	_, err := dbStorage.Exec(query, orderNumber, userID, NEW, currentTime, currentTime)
-	dbStorage.Close()
+	_, err = dbStorage.Exec(query, orderNumber, userID, NEW, currentTime, currentTime)
 
 	return err
 }
