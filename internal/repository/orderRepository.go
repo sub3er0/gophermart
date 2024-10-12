@@ -16,7 +16,8 @@ const (
 )
 
 type OrderRepository struct {
-	DBStorage *storage.PgStorage
+	DBStorage        *storage.PgStorage
+	ConnectionString string
 }
 
 var (
@@ -49,9 +50,12 @@ func (or *OrderRepository) GetOrderID(orderNumber string, userID int) (int, erro
 
 func (or *OrderRepository) SaveOrder(orderNumber string, userID int) error {
 	currentTime := time.Now()
+	dbStorage := or.GetDBStorage()
+	dbStorage.Init(or.ConnectionString)
 
 	query := "INSERT INTO orders (number, user_id, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)"
-	_, err := or.DBStorage.Conn.Exec(or.DBStorage.Ctx, query, orderNumber, userID, NEW, currentTime, currentTime)
+	_, err := dbStorage.Exec(query, orderNumber, userID, NEW, currentTime, currentTime)
+	dbStorage.Close()
 
 	return err
 }

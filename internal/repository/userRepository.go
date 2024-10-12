@@ -8,7 +8,8 @@ import (
 )
 
 type UserRepository struct {
-	DBStorage *storage.PgStorage
+	DBStorage        *storage.PgStorage
+	ConnectionString string
 }
 
 func (ur *UserRepository) GetDBStorage() interfaces.DBStorageInterface {

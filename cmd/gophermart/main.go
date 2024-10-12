@@ -83,7 +83,8 @@ func main() {
 	}
 	userService.SetConnectionString(cfg.DatabaseDsn)
 	orderRepository := repository.OrderRepository{
-		DBStorage: pgsStorage,
+		DBStorage:        pgsStorage,
+		ConnectionString: cfg.DatabaseDsn,
 	}
 	orderService := service.OrderService{
 		OrderRepository: &orderRepository,
