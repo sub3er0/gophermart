@@ -58,3 +58,7 @@ func (pgs *PgStorage) Rollback() error {
 func (pgs *PgStorage) Commit() error {
 	return pgs.transaction.Commit(pgs.Ctx)
 }
+
+func (pgs *PgStorage) QueryRow(query string, args ...interface{}) pgx.Row {
+	return pgs.transaction.QueryRow(pgs.Ctx, query, args...)
+}

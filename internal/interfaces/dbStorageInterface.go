@@ -13,4 +13,5 @@ type DBStorageInterface interface {
 	BeginTransaction() error
 	Rollback() error
 	Commit() error
+	QueryRow(query string, args ...interface{}) pgx.Row
 }
