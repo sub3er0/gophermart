@@ -67,6 +67,7 @@ func (us *UserService) RegisterUser(user models.User, userBalanceRepository inte
 	userRepository := us.GetUserRepository()
 	dbStorage := userRepository.GetDBStorage()
 	err := dbStorage.Init(us.connectionString)
+	defer dbStorage.Close()
 
 	if err != nil {
 		log.Fatalf("Error while initializing db connection: %v", err)
@@ -91,8 +92,6 @@ func (us *UserService) RegisterUser(user models.User, userBalanceRepository inte
 	if err := dbStorage.Commit(); err != nil {
 		return ErrDB
 	}
-
-	dbStorage.Close()
 
 	return nil
 }
