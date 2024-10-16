@@ -16,7 +16,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -170,58 +169,49 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	_, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 
-	go func() {
-		defer wg.Done()
+	orderRepository := uh.OrderService.GetOrderRepository()
+	dbStorage := orderRepository.GetDBStorage()
 
-		_, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
+	if err := dbStorage.BeginTransaction(); err != nil {
+		log.Printf("Failed to begin transaction: %v", err)
+		return
+	}
 
-		orderRepository := uh.OrderService.GetOrderRepository()
-		dbStorage := orderRepository.GetDBStorage()
+	var registerResponse accrual.RegisterResponse
+	registerResponse, err = accrual.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
+	if err != nil {
+		log.Printf("Failed to get order info: %v", err)
+		_ = dbStorage.Rollback()
+		return
+	}
 
-		if err := dbStorage.BeginTransaction(); err != nil {
-			log.Printf("Failed to begin transaction: %v", err)
-			return
-		}
-
-		var registerResponse accrual.RegisterResponse
-		registerResponse, err := accrual.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
-		if err != nil {
-			log.Printf("Failed to get order info: %v", err)
+	if registerResponse.Order != "" {
+		if err := uh.OrderService.UpdateOrder(orderNumber, registerResponse.Accrual, registerResponse.Status); err != nil {
 			_ = dbStorage.Rollback()
+			log.Printf("Failed to update order: %v", err)
 			return
 		}
 
-		if registerResponse.Order != "" {
-			if err := uh.OrderService.UpdateOrder(orderNumber, registerResponse.Accrual, registerResponse.Status); err != nil {
-				_ = dbStorage.Rollback()
-				log.Printf("Failed to update order: %v", err)
-				return
-			}
-
-			if err := uh.UserBalanceService.UpdateUserBalance(registerResponse.Accrual, userID); err != nil {
-				_ = dbStorage.Rollback()
-				log.Printf("Failed to update user balance: %v", err)
-				return
-			}
-
-			// Здесь можно выполнить коммит после успешных операций
-			if err := dbStorage.Commit(); err != nil {
-				log.Printf("Failed to commit transaction: %v", err)
-				return
-			}
-		} else {
-			log.Printf("Order not found in accrual service")
-			if err := dbStorage.Rollback(); err != nil {
-				log.Printf("Failed to rollback transaction: %v", err)
-			}
+		if err := uh.UserBalanceService.UpdateUserBalance(registerResponse.Accrual, userID); err != nil {
+			_ = dbStorage.Rollback()
+			log.Printf("Failed to update user balance: %v", err)
+			return
 		}
-	}()
 
-	wg.Wait()
+		// Здесь можно выполнить коммит после успешных операций
+		if err := dbStorage.Commit(); err != nil {
+			log.Printf("Failed to commit transaction: %v", err)
+			return
+		}
+	} else {
+		log.Printf("Order not found in accrual service")
+		if err := dbStorage.Rollback(); err != nil {
+			log.Printf("Failed to rollback transaction: %v", err)
+		}
+	}
 }
 
 func isDigits(s string) bool {
