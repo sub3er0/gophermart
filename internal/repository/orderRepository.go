@@ -24,7 +24,7 @@ var (
 )
 
 func (or *OrderRepository) GetDBStorage() interfaces.DBStorageInterface {
-	return &storage.PgStorage{}
+	return or.DBStorage
 }
 
 func (or *OrderRepository) GetOrderID(orderNumber string, userID int) (int, error) {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
@@ -15,7 +16,7 @@ func (us *UserService) GetUserID(username string) int {
 	return us.UserRepository.GetUserID(username)
 }
 
-func (us *UserService) RegisterUser(user models.User) (models.User, error) {
+func (us *UserService) CreateUser(user models.User) (models.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 
 	if err != nil {
@@ -49,4 +50,32 @@ func (us *UserService) AuthenticateUser(username, password string) (models.User,
 
 func (us *UserService) GetUserRepository() interfaces.UserRepositoryInterface {
 	return us.UserRepository
+}
+
+func (us *UserService) RegisterUser(user models.User, userBalance interfaces.UserBalanceRepositoryInterface) error {
+	userRepository := us.GetUserRepository()
+	dbStorage := userRepository.GetDBStorage()
+
+	err := dbStorage.BeginTransaction()
+
+	if err != nil {
+		return fmt.Errorf("не удалось зарегистрировать пользователя %s: %w", user.Username, err)
+	}
+
+	if user, err = us.CreateUser(user); err != nil {
+		_ = dbStorage.Rollback()
+		return fmt.Errorf("failed to register user")
+	}
+
+	if err = userBalance.CreateUserBalance(user); err != nil {
+		_ = dbStorage.Rollback()
+		return fmt.Errorf("failed to register user")
+	}
+
+	if err := dbStorage.Commit(); err != nil {
+		_ = dbStorage.Rollback()
+		return fmt.Errorf("failed to register user")
+	}
+
+	return nil
 }

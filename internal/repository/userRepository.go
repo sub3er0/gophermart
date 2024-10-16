@@ -12,7 +12,7 @@ type UserRepository struct {
 }
 
 func (ur *UserRepository) GetDBStorage() interfaces.DBStorageInterface {
-	return &storage.PgStorage{}
+	return ur.DBStorage
 }
 
 func (ur *UserRepository) CreateUser(user models.User) (int, error) {
