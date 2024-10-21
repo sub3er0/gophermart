@@ -117,6 +117,7 @@ func main() {
 	userBalanceService := service.UserBalanceService{
 		UserBalanceRepository: &userBalanceRepository,
 	}
+	TokenGenerator := handlers.TokenGenerator{}
 	userHandler := handlers.UserHandler{
 		UserService:          &userService,
 		OrderService:         &orderService,
@@ -124,7 +125,7 @@ func main() {
 		UserBalanceService:   &userBalanceService,
 		AccrualSystemAddress: cfg.AccrualSystemAddress,
 		DBConnectionString:   cfg.DatabaseDsn,
-		TokenGenerator:       handlers.TokenGenerator{},
+		TokenGenerator:       &TokenGenerator,
 	}
 
 	r := chi.NewRouter()
