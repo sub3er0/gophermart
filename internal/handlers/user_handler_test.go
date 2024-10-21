@@ -105,7 +105,7 @@ func (or *MockOrderRepository) GetUserOrders(userID int) ([]interfaces.OrderData
 }
 
 func (or *MockOrderRepository) GetDBStorage() interfaces.DBStorageInterface {
-	return or.GetDBStorage()
+	return or.GetDBStorageFunc()
 }
 
 type MockDBStorage struct {
