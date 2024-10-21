@@ -2,10 +2,11 @@ package service
 
 import (
 	"fmt"
-	"github.com/jackc/pgx/v4"
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/repository"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/shopspring/decimal"
 )
 
 type WithdrawService struct {

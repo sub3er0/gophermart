@@ -2,9 +2,10 @@ package accrual
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/shopspring/decimal"
-	"net/http"
 )
 
 type RegisterResponse struct {

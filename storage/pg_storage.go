@@ -3,9 +3,10 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"log"
+
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"log"
 )
 
 type PgStorage struct {

@@ -1,10 +1,11 @@
 package repository
 
 import (
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/storage"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type WithdrawRepository struct {

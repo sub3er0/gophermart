@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/jackc/pgx/v4"
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
@@ -14,6 +12,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/shopspring/decimal"
 )
 
 type MockUserService struct {

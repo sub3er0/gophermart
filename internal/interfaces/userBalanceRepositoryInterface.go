@@ -1,8 +1,9 @@
 package interfaces
 
 import (
-	"github.com/shopspring/decimal"
 	"gophermart/internal/models"
+
+	"github.com/shopspring/decimal"
 )
 
 type UserBalanceRepositoryInterface interface {

@@ -1,10 +1,11 @@
 package service
 
 import (
-	"golang.org/x/crypto/bcrypt"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {

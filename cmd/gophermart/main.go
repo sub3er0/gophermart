@@ -2,21 +2,22 @@ package main
 
 import (
 	"context"
-	"github.com/go-chi/chi/v5"
 	"gophermart/internal/config"
 	"gophermart/internal/handlers"
 	"gophermart/internal/middleware"
 	"gophermart/internal/repository"
 	"gophermart/internal/service"
 	"gophermart/storage"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime/pprof"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func saveHeapProfile(filename string) {

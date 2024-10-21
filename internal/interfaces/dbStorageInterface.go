@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"database/sql"
+
 	"github.com/jackc/pgx/v4"
 )
 
