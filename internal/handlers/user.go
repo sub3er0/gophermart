@@ -27,7 +27,14 @@ type UserHandler struct {
 	UserBalanceService   interfaces.UserBalanceRepositoryInterface
 	AccrualSystemAddress string
 	DBConnectionString   string
+	TokenGenerator       TokenGeneratorInterface
 }
+
+type TokenGeneratorInterface interface {
+	GenerateToken(user models.User) (string, error)
+}
+
+type TokenGenerator struct{}
 
 func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var user models.User
@@ -56,7 +63,8 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	err := dbStorage.Init(uh.DBConnectionString)
 
 	if err != nil {
-		log.Fatalf("Error while initializing db connection: %v", err)
+		http.Error(w, "Failed to register user", http.StatusInternalServerError)
+		return
 	}
 
 	err = dbStorage.BeginTransaction()
@@ -83,7 +91,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateToken(user)
+	token, err := uh.TokenGenerator.GenerateToken(user)
 
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
@@ -121,7 +129,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateToken(authUser)
+	token, err := uh.TokenGenerator.GenerateToken(authUser)
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
 		return
@@ -140,7 +148,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
 
-func generateToken(user models.User) (string, error) {
+func (gt *TokenGenerator) GenerateToken(user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"id":  user.ID,
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
@@ -151,15 +159,6 @@ func generateToken(user models.User) (string, error) {
 
 func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
-
-	//userRepository := uh.UserService.GetUserRepository()
-	//
-	//userID := userRepository.GetUserID(username)
-
-	//if userID < 0 {
-	//	http.Error(w, "пользователь не найден", http.StatusNotFound)
-	//	return
-	//}
 
 	body, err := io.ReadAll(r.Body)
 
@@ -274,15 +273,6 @@ func isDigits(s string) bool {
 func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
-	//userRepository := uh.UserService.GetUserRepository()
-	//
-	//userID := userRepository.GetUserID(username)
-	//
-	//if userID < 0 {
-	//	http.Error(w, "пользователь не найден", http.StatusNotFound)
-	//	return
-	//}
-
 	orderData, err := uh.OrderService.GetUserOrders(userID)
 
 	if err != nil {
@@ -316,15 +306,6 @@ func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
-	//userRepository := uh.UserService.GetUserRepository()
-	//
-	//userID := userRepository.GetUserID(username)
-	//
-	//if userID < 0 {
-	//	http.Error(w, "Пользователь не найден", http.StatusNotFound)
-	//	return
-	//}
-
 	userBalance, err := uh.UserBalanceService.GetUserBalance(userID)
 
 	if err != nil {
@@ -352,15 +333,6 @@ func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 
 func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
-
-	//userRepository := uh.UserService.GetUserRepository()
-	//
-	//userID := userRepository.GetUserID(username)
-	//
-	//if userID < 0 {
-	//	http.Error(w, "Пользователь не найден", http.StatusNotFound)
-	//	return
-	//}
 
 	var withdraw models.Withdraw
 	err := json.NewDecoder(r.Body).Decode(&withdraw)
@@ -413,15 +385,6 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
-
-	//userRepository := uh.UserService.GetUserRepository()
-	//
-	//userID := userRepository.GetUserID(username)
-	//
-	//if userID < 0 {
-	//	http.Error(w, "Пользователь не найден", http.StatusNotFound)
-	//	return
-	//}
 
 	withdrawalInfo, err := uh.WithdrawService.Withdrawals(userID)
 

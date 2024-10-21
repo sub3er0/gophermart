@@ -34,11 +34,11 @@ func (ur *UserRepository) GetUserID(username string) int {
 	err := ur.DBStorage.Conn.QueryRow(ur.DBStorage.Ctx, query, username).Scan(&id)
 
 	if err != nil && err.Error() != "no rows in result set" {
-		return -2
+		return DatabaseError
 	}
 
 	if err != nil && err.Error() == "no rows in result set" {
-		return -1
+		return UserNotFound
 	}
 
 	return id
