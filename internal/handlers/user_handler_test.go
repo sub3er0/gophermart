@@ -55,7 +55,7 @@ func (ur *MockUserRepository) GetUserByUsername(username string) (models.User, e
 }
 
 func (ur *MockUserRepository) GetDBStorage() interfaces.DBStorageInterface {
-	return &MockDbStorage{}
+	return &MockDBStorage{}
 }
 
 type MockOrderService struct {
@@ -85,7 +85,7 @@ func (os *MockOrderService) GetOrderRepository() interfaces.OrderRepositoryInter
 }
 
 type MockOrderRepository struct {
-	GetDbStorage func() interfaces.DBStorageInterface
+	GetDBStorageFunc func() interfaces.DBStorageInterface
 }
 
 func (or *MockOrderRepository) GetOrderID(orderNumber string, userID int) (int, error) {
@@ -105,30 +105,30 @@ func (or *MockOrderRepository) GetUserOrders(userID int) ([]interfaces.OrderData
 }
 
 func (or *MockOrderRepository) GetDBStorage() interfaces.DBStorageInterface {
-	return or.GetDbStorage()
+	return or.GetDBStorage()
 }
 
-type MockDbStorage struct {
+type MockDBStorage struct {
 	InitFunc             func() error
 	BeginTransactionFunc func() error
 	CommitFunc           func() error
 }
 
-func (dbs *MockDbStorage) Init(connectionString string) error {
+func (dbs *MockDBStorage) Init(connectionString string) error {
 	return dbs.InitFunc()
 }
 
-func (dbs *MockDbStorage) Exec(query string, args ...interface{}) (sql.Result, error) {
+func (dbs *MockDBStorage) Exec(query string, args ...interface{}) (sql.Result, error) {
 	return nil, nil
 }
-func (dbs *MockDbStorage) Select(query string, args ...interface{}) (pgx.Rows, error) {
+func (dbs *MockDBStorage) Select(query string, args ...interface{}) (pgx.Rows, error) {
 	return nil, nil
 }
-func (dbs *MockDbStorage) Close()                                             {}
-func (dbs *MockDbStorage) BeginTransaction() error                            { return dbs.BeginTransactionFunc() }
-func (dbs *MockDbStorage) Rollback() error                                    { return nil }
-func (dbs *MockDbStorage) Commit() error                                      { return dbs.CommitFunc() }
-func (dbs *MockDbStorage) QueryRow(query string, args ...interface{}) pgx.Row { return nil }
+func (dbs *MockDBStorage) Close()                                             {}
+func (dbs *MockDBStorage) BeginTransaction() error                            { return dbs.BeginTransactionFunc() }
+func (dbs *MockDBStorage) Rollback() error                                    { return nil }
+func (dbs *MockDBStorage) Commit() error                                      { return dbs.CommitFunc() }
+func (dbs *MockDBStorage) QueryRow(query string, args ...interface{}) pgx.Row { return nil }
 
 type MockUserBalanceRepository struct {
 	CreateUserBalanceFunc func(models.User) error
@@ -157,7 +157,7 @@ func TestRegister(t *testing.T) {
 			}
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return nil
 		},
@@ -171,7 +171,7 @@ func TestRegister(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
@@ -307,7 +307,7 @@ func TestRegister_InitError(t *testing.T) {
 			}
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return errors.New("error")
 		},
@@ -318,7 +318,7 @@ func TestRegister_InitError(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
@@ -356,7 +356,7 @@ func TestRegister_BeginTransactionError(t *testing.T) {
 			}
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return nil
 		},
@@ -367,7 +367,7 @@ func TestRegister_BeginTransactionError(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
@@ -405,7 +405,7 @@ func TestRegister_RegisterUserError(t *testing.T) {
 			}
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return nil
 		},
@@ -416,7 +416,7 @@ func TestRegister_RegisterUserError(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
@@ -459,7 +459,7 @@ func TestRegister_CreateUserBalanceError(t *testing.T) {
 			return errors.New("error")
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return nil
 		},
@@ -470,7 +470,7 @@ func TestRegister_CreateUserBalanceError(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
@@ -513,7 +513,7 @@ func TestRegister_CommitError(t *testing.T) {
 			return nil
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return nil
 		},
@@ -527,7 +527,7 @@ func TestRegister_CommitError(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
@@ -583,7 +583,7 @@ func TestRegister_GenerateToken(t *testing.T) {
 			return "mockedToken", errors.New("error")
 		},
 	}
-	dbStorage := &MockDbStorage{
+	dbStorage := &MockDBStorage{
 		InitFunc: func() error {
 			return nil
 		},
@@ -597,7 +597,7 @@ func TestRegister_GenerateToken(t *testing.T) {
 	orderService := &MockOrderService{
 		GetOrderRepositoryFunc: func() interfaces.OrderRepositoryInterface {
 			return &MockOrderRepository{
-				GetDbStorage: func() interfaces.DBStorageInterface {
+				GetDBStorageFunc: func() interfaces.DBStorageInterface {
 					return dbStorage
 				},
 			}
