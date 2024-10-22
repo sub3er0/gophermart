@@ -1,3 +1,4 @@
+// Package handlers содержит определения обработчиков HTTP-запросов
 package handlers
 
 import (
@@ -21,6 +22,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+// UserHandler содержит сервисы и переменные, используемые в методах обработки запросов
 type UserHandler struct {
 	UserService          interfaces.UserServiceInterface
 	OrderService         interfaces.OrderServiceInterface
@@ -33,12 +35,15 @@ type UserHandler struct {
 	NumberValidator      ValidateNumberInterface
 }
 
+// TokenGeneratorInterface определяет метод для генерации токенов.
 type TokenGeneratorInterface interface {
 	GenerateToken(user models.User) (string, error)
 }
 
+// TokenGenerator реализует генерацию токенов.
 type TokenGenerator struct{}
 
+// Register обрабатывает запрос на регистрацию пользователя.
 func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 
@@ -116,6 +121,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 }
 
+// Login обрабатывает запрос на вход пользователя в систему.
 func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var creds middleware.Credentials
 
@@ -151,6 +157,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
 
+// GenerateToken создает токен на основе ID пользователя и срока действия.
 func (gt *TokenGenerator) GenerateToken(user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"id":  user.ID,
@@ -160,6 +167,7 @@ func (gt *TokenGenerator) GenerateToken(user models.User) (string, error) {
 	return token.SignedString([]byte(middleware.SecretKey))
 }
 
+// SaveOrder обрабатывает запрос на сохранение заказа.
 func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -267,11 +275,13 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 }
 
+// isDigits проверяет, все ли символы в строке являются цифрами.
 func isDigits(s string) bool {
 	re := regexp.MustCompile(`^\d+$`)
 	return re.MatchString(s)
 }
 
+// GetOrders обрабатывает запрос на получение заказов.
 func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -305,6 +315,7 @@ func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetBalance обрабатывает запрос на получение баланса пользователя.
 func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -333,6 +344,7 @@ func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Withdraw обрабатывает запрос на снятие средств.
 func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -385,6 +397,7 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// Withdrawals обрабатывает запрос на получение информации о выводах.
 func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -413,12 +426,15 @@ func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ValidateNumberInterface определяет метод для валидации номера заказа.
 type ValidateNumberInterface interface {
 	ValidateNumber(orderNumber string) bool
 }
 
+// NumberValidator реализует валидацию номера заказа.
 type NumberValidator struct{}
 
+// ValidateNumber проверяет, является ли строка допустимым номером заказа.
 func (vn *NumberValidator) ValidateNumber(orderNumber string) bool {
 	orderNumber = strings.ReplaceAll(orderNumber, " ", "")
 	orderNumber = strings.ReplaceAll(orderNumber, "-", "")
