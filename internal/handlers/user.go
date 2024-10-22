@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"gophermart/internal/accrual"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
+	"gophermart/internal/service"
 	"io"
 	"log"
 	"net/http"
@@ -26,9 +26,11 @@ type UserHandler struct {
 	OrderService         interfaces.OrderServiceInterface
 	WithdrawService      interfaces.WithdrawRepositoryInterface
 	UserBalanceService   interfaces.UserBalanceRepositoryInterface
+	AccrualService       service.AccrualServiceInterface
 	AccrualSystemAddress string
 	DBConnectionString   string
 	TokenGenerator       TokenGeneratorInterface
+	NumberValidator      ValidateNumberInterface
 }
 
 type TokenGeneratorInterface interface {
@@ -178,7 +180,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !ValidateNumber(orderNumber) {
+	if !uh.NumberValidator.ValidateNumber(orderNumber) {
 		http.Error(w, "Неверный формат номера заказа", http.StatusUnprocessableEntity)
 		return
 	}
@@ -229,8 +231,8 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var registerResponse accrual.RegisterResponse
-		registerResponse, err := accrual.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
+		var registerResponse service.RegisterResponse
+		registerResponse, err := uh.AccrualService.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
 		if err != nil {
 			log.Printf("Failed to get order info: %v", err)
 			_ = dbStorage.Rollback()
@@ -250,7 +252,6 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Здесь можно выполнить коммит после успешных операций
 			if err := dbStorage.Commit(); err != nil {
 				log.Printf("Failed to commit transaction: %v", err)
 				return
@@ -412,7 +413,13 @@ func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ValidateNumber(orderNumber string) bool {
+type ValidateNumberInterface interface {
+	ValidateNumber(orderNumber string) bool
+}
+
+type NumberValidator struct{}
+
+func (vn *NumberValidator) ValidateNumber(orderNumber string) bool {
 	orderNumber = strings.ReplaceAll(orderNumber, " ", "")
 	orderNumber = strings.ReplaceAll(orderNumber, "-", "")
 

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
+	"gophermart/internal/service"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,6 +65,10 @@ type MockOrderService struct {
 	RegisterUserFunc       func(models.User) (models.User, error)
 	AuthenticateUserFunc   func(string, string) (models.User, error)
 	GetOrderRepositoryFunc func() interfaces.OrderRepositoryInterface
+	GetOrderIDFunc         func(orderNumber string, userID int) (int, error)
+	SaveOrderFunc          func(orderNumber string, userID int) error
+	UpdateOrderFunc        func(orderNumber string, accrual decimal.Decimal, status string) error
+	GetUserOrdersFunc      func(userID int) ([]interfaces.OrderData, error)
 }
 
 func (os *MockOrderService) GetOrderID(orderNumber string, userID int) (int, error) {
@@ -74,11 +80,11 @@ func (os *MockOrderService) SaveOrder(orderNumber string, userID int) error {
 }
 
 func (os *MockOrderService) UpdateOrder(orderNumber string, accrual decimal.Decimal, status string) error {
-	return nil
+	return os.UpdateOrderFunc(orderNumber, accrual, status)
 }
 
 func (os *MockOrderService) GetUserOrders(userID int) ([]interfaces.OrderData, error) {
-	return []interfaces.OrderData{}, nil
+	return os.GetUserOrdersFunc(userID)
 }
 
 func (os *MockOrderService) GetOrderRepository() interfaces.OrderRepositoryInterface {
@@ -113,6 +119,7 @@ type MockDBStorage struct {
 	InitFunc             func() error
 	BeginTransactionFunc func() error
 	CommitFunc           func() error
+	RollbackFunc         func() error
 }
 
 func (dbs *MockDBStorage) Init(connectionString string) error {
@@ -133,13 +140,15 @@ func (dbs *MockDBStorage) QueryRow(query string, args ...interface{}) pgx.Row { 
 
 type MockUserBalanceRepository struct {
 	CreateUserBalanceFunc func(models.User) error
+	UpdateUserBalanceFunc func(accrual decimal.Decimal, userID int) error
+	GetUserBalanceFunc    func(userID int) (interfaces.UserBalance, error)
 }
 
 func (ubr *MockUserBalanceRepository) UpdateUserBalance(accrual decimal.Decimal, userID int) error {
 	return nil
 }
 func (ubr *MockUserBalanceRepository) GetUserBalance(userID int) (interfaces.UserBalance, error) {
-	return interfaces.UserBalance{}, nil
+	return ubr.GetUserBalanceFunc(userID)
 }
 func (ubr *MockUserBalanceRepository) CreateUserBalance(user models.User) error {
 	return ubr.CreateUserBalanceFunc(user)
@@ -658,5 +667,246 @@ func TestLogin(t *testing.T) {
 
 	if message, exists := response["message"]; !exists || message != "Login successful" {
 		t.Errorf("Expected success message, got %v", message)
+	}
+}
+
+type MockNumberValidator struct {
+	ValidateNumberFunc func() bool
+}
+
+func (mnv *MockNumberValidator) ValidateNumber(orderNumber string) bool {
+	return mnv.ValidateNumberFunc()
+}
+
+type MockAccrualService struct {
+	GetOrderInfoFunc func(accrualServerAddress string, orderNumber string) (service.RegisterResponse, error)
+}
+
+func (m *MockAccrualService) GetOrderInfo(accrualServerAddress string, orderNumber string) (service.RegisterResponse, error) {
+	return m.GetOrderInfoFunc(accrualServerAddress, orderNumber)
+}
+
+func TestSaveOrder_Success(t *testing.T) {
+	userID := 123
+	orderNumber := 1234567890
+
+	mockOrderService := &MockOrderService{
+		GetOrderIDFunc: func(orderNumber string, userID int) (int, error) {
+			return 0, nil
+		},
+		SaveOrderFunc: func(orderNumber string, userID int) error {
+			return nil
+		},
+		UpdateOrderFunc: func(orderNumber string, accrual decimal.Decimal, status string) error {
+			return nil
+		},
+	}
+
+	mockUserBalanceService := &MockUserBalanceRepository{
+		UpdateUserBalanceFunc: func(accrual decimal.Decimal, userID int) error {
+			return nil
+		},
+	}
+
+	mockDBStorage := &MockDBStorage{
+		InitFunc:             func() error { return nil },
+		BeginTransactionFunc: func() error { return nil },
+		CommitFunc:           func() error { return nil },
+		RollbackFunc:         func() error { return nil },
+	}
+
+	orderRepository := &MockOrderRepository{
+		GetDBStorageFunc: func() interfaces.DBStorageInterface {
+			return mockDBStorage
+		},
+	}
+	mockOrderService.GetOrderRepositoryFunc = func() interfaces.OrderRepositoryInterface {
+		return orderRepository
+	}
+	mockNumberValidator := &MockNumberValidator{
+		ValidateNumberFunc: func() bool {
+			return true
+		},
+	}
+	mockAccrualService := &MockAccrualService{
+		GetOrderInfoFunc: func(accrualServerAddress string, orderNumber string) (service.RegisterResponse, error) {
+			return service.RegisterResponse{
+				Order:   "1",
+				Status:  "New",
+				Accrual: decimal.NewFromFloat(1),
+			}, nil
+		},
+	}
+	userHandler := UserHandler{
+		OrderService:       mockOrderService,
+		UserBalanceService: mockUserBalanceService,
+		DBConnectionString: "fake-connection-string",
+		NumberValidator:    mockNumberValidator,
+		AccrualService:     mockAccrualService,
+	}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusAccepted {
+		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+}
+
+func TestGetOrders_Success(t *testing.T) {
+	mockOrders := []interfaces.OrderData{}
+
+	mockOrderService := &MockOrderService{
+		GetUserOrdersFunc: func(userID int) ([]interfaces.OrderData, error) {
+			return mockOrders, nil
+		},
+	}
+
+	userHandler := UserHandler{
+		OrderService: mockOrderService,
+	}
+
+	req := httptest.NewRequest("GET", "/api/user/orders", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, 123)) // пользователь ID 123
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.GetOrders).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+
+	var response []interfaces.OrderData
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if len(response) != len(mockOrders) {
+		t.Errorf("Expected %d orders, got %d", len(mockOrders), len(response))
+	}
+}
+
+func TestGetBalance_Success(t *testing.T) {
+	mockUserBalanceService := &MockUserBalanceRepository{
+		GetUserBalanceFunc: func(userID int) (interfaces.UserBalance, error) {
+			return interfaces.UserBalance{
+				Current:   100,
+				Withdrawn: 100,
+			}, nil
+		},
+	}
+
+	userHandler := UserHandler{
+		UserBalanceService: mockUserBalanceService,
+	}
+
+	req := httptest.NewRequest("GET", "/api/user/balance", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, 123)) // Устанавливаем ID пользователя
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.GetBalance).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+
+	var response interfaces.UserBalance
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response.Withdrawn != 100.00 {
+		t.Errorf("Expected withdrawn 100.00, got %.2f", response.Withdrawn)
+	}
+
+	if response.Current != 100.00 {
+		t.Errorf("Expected current 100.00, got %.2f", response.Current)
+	}
+}
+
+type MockWithdrawRepository struct {
+	WithdrawFunc    func() (int, error)
+	WithdrawalsFunc func() ([]interfaces.WithdrawInfo, error)
+}
+
+func (mwr *MockWithdrawRepository) Withdraw(userID int, orderNumber string, sum decimal.Decimal) (int, error) {
+	return mwr.WithdrawFunc()
+}
+func (mwr *MockWithdrawRepository) Withdrawals(userID int) ([]interfaces.WithdrawInfo, error) {
+	return mwr.WithdrawalsFunc()
+}
+
+func TestWithdraw_Success(t *testing.T) {
+	mockOrderService := &MockOrderService{
+		GetOrderIDFunc: func(orderNumber string, userID int) (int, error) {
+			return 0, nil
+		},
+	}
+
+	mockWithdrawService := &MockWithdrawRepository{
+		WithdrawFunc: func() (int, error) {
+			return 0, nil
+		},
+	}
+
+	userHandler := UserHandler{
+		OrderService:    mockOrderService,
+		WithdrawService: mockWithdrawService,
+	}
+
+	withdrawData := models.Withdraw{
+		Order: "123456",
+		Sum:   decimal.NewFromFloat(100.0),
+	}
+	body, _ := json.Marshal(withdrawData)
+	req := httptest.NewRequest("POST", "/api/user/withdraw", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, 123)) // Установка ID пользователя
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.Withdraw).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+}
+
+func TestWithdrawals_Success(t *testing.T) {
+	mockWithdrawService := &MockWithdrawRepository{
+		WithdrawalsFunc: func() ([]interfaces.WithdrawInfo, error) {
+			return []interfaces.WithdrawInfo{
+				{OrderNumber: "123456", Sum: 100.0},
+				{OrderNumber: "789012", Sum: 50.0},
+			}, nil
+		},
+	}
+
+	userHandler := UserHandler{
+		WithdrawService: mockWithdrawService,
+	}
+
+	req := httptest.NewRequest("GET", "/api/user/withdrawals", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, 123)) // Устанавливаем ID пользователя
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.Withdrawals).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+
+	var response []models.Withdraw
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if len(response) != 2 {
+		t.Errorf("Expected 2 withdrawals, got %d", len(response))
 	}
 }
