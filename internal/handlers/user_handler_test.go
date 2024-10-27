@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
@@ -72,11 +73,11 @@ type MockOrderService struct {
 }
 
 func (os *MockOrderService) GetOrderID(orderNumber string, userID int) (int, error) {
-	return -1, nil
+	return os.GetOrderIDFunc(orderNumber, userID)
 }
 
 func (os *MockOrderService) SaveOrder(orderNumber string, userID int) error {
-	return nil
+	return os.SaveOrderFunc(orderNumber, userID)
 }
 
 func (os *MockOrderService) UpdateOrder(orderNumber string, accrual decimal.Decimal, status string) error {
@@ -566,7 +567,7 @@ type MockTokenGenerator struct {
 	GenerateTokenFunc func(models.User) (string, error)
 }
 
-func (m *MockTokenGenerator) GenerateToken(user models.User) (string, error) {
+func (m *MockTokenGenerator) _GenerateToken(user models.User) (string, error) {
 	return m.GenerateTokenFunc(user)
 }
 
@@ -670,6 +671,71 @@ func TestLogin(t *testing.T) {
 	}
 }
 
+func TestLogin_InvalidData(t *testing.T) {
+	handler := UserHandler{}
+
+	invalidJSON := `{username: "testuser"\", password: "password"}`
+	body, _ := json.Marshal(invalidJSON)
+	req := httptest.NewRequest("POST", "/api/user/login", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(handler.Login).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %v", rr.Code)
+	}
+}
+
+func TestLogin_InvalidAuthenticate(t *testing.T) {
+	mockUserService := &MockUserService{
+		AuthenticateUserFunc: func(username, password string) (models.User, error) {
+			return models.User{ID: 1, Username: username}, errors.New("error") // Успешная аутентификация
+		},
+	}
+	handler := UserHandler{
+		UserService: mockUserService,
+	}
+
+	creds := middleware.Credentials{Username: "testuser", Password: "password"}
+	body, _ := json.Marshal(creds)
+	req := httptest.NewRequest("POST", "/api/user/login", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(handler.Login).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401, got %v", rr.Code)
+	}
+}
+
+func TestLogin_InvalidGenerateToken(t *testing.T) {
+	mockUserService := &MockUserService{
+		AuthenticateUserFunc: func(username, password string) (models.User, error) {
+			return models.User{ID: 1, Username: username}, nil // Успешная аутентификация
+		},
+	}
+	mockTokenGen := &MockTokenGenerator{
+		GenerateTokenFunc: func(user models.User) (string, error) {
+			return "mockedToken", errors.New("error")
+		},
+	}
+	handler := UserHandler{
+		UserService:    mockUserService,
+		TokenGenerator: mockTokenGen,
+	}
+
+	creds := middleware.Credentials{Username: "testuser", Password: "password"}
+	body, _ := json.Marshal(creds)
+	req := httptest.NewRequest("POST", "/api/user/login", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(handler.Login).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %v", rr.Code)
+	}
+}
+
 type MockNumberValidator struct {
 	ValidateNumberFunc func() bool
 }
@@ -754,6 +820,219 @@ func TestSaveOrder_Success(t *testing.T) {
 
 	if rr.Code != http.StatusAccepted {
 		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+}
+
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("forced read error")
+}
+
+func TestSaveOrder_InvalidData(t *testing.T) {
+	userID := 123
+	userHandler := UserHandler{}
+
+	req, _ := http.NewRequest("POST", "/api/user/order", &errorReader{})
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %v", rr.Code)
+	}
+}
+
+func TestSaveOrder_InvalidDigit(t *testing.T) {
+	userID := 123
+	orderNumber := "1234567890asdf"
+
+	userHandler := UserHandler{}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %v", rr.Code)
+	}
+}
+
+func TestSaveOrder_InvalidNumberValidator(t *testing.T) {
+	userID := 123
+	orderNumber := 1234567890
+
+	mockNumberValidator := &MockNumberValidator{
+		ValidateNumberFunc: func() bool {
+			return false
+		},
+	}
+
+	userHandler := UserHandler{
+		NumberValidator: mockNumberValidator,
+	}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("Expected status 422, got %v", rr.Code)
+	}
+}
+
+func TestSaveOrder_InvalidGetOrderID(t *testing.T) {
+	userID := 123
+	orderNumber := 1234567890
+
+	mockOrderService := &MockOrderService{
+		GetOrderIDFunc: func(orderNumber string, userID int) (int, error) {
+			return 0, errors.New("error")
+		},
+		SaveOrderFunc: func(orderNumber string, userID int) error {
+			return nil
+		},
+		UpdateOrderFunc: func(orderNumber string, accrual decimal.Decimal, status string) error {
+			return nil
+		},
+	}
+	mockNumberValidator := &MockNumberValidator{
+		ValidateNumberFunc: func() bool {
+			return true
+		},
+	}
+	userHandler := UserHandler{
+		OrderService:    mockOrderService,
+		NumberValidator: mockNumberValidator,
+	}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %v", rr.Code)
+	}
+}
+
+func TestSaveOrder_LoadByAnotherUser(t *testing.T) {
+	userID := 123
+	orderNumber := 1234567890
+
+	mockOrderService := &MockOrderService{
+		GetOrderIDFunc: func(orderNumber string, userID int) (int, error) {
+			return repository.OrderLoadedByAnotherUser, nil
+		},
+		SaveOrderFunc: func(orderNumber string, userID int) error {
+			return nil
+		},
+		UpdateOrderFunc: func(orderNumber string, accrual decimal.Decimal, status string) error {
+			return nil
+		},
+	}
+	mockNumberValidator := &MockNumberValidator{
+		ValidateNumberFunc: func() bool {
+			return true
+		},
+	}
+	userHandler := UserHandler{
+		OrderService:    mockOrderService,
+		NumberValidator: mockNumberValidator,
+	}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Errorf("Expected status 409, got %v", rr.Code)
+	}
+}
+
+func TestSaveOrder_LoadByThisUser(t *testing.T) {
+	userID := 123
+	orderNumber := 1234567890
+
+	mockOrderService := &MockOrderService{
+		GetOrderIDFunc: func(orderNumber string, userID int) (int, error) {
+			return repository.OrderLoaderByThisUser, nil
+		},
+		SaveOrderFunc: func(orderNumber string, userID int) error {
+			return nil
+		},
+		UpdateOrderFunc: func(orderNumber string, accrual decimal.Decimal, status string) error {
+			return nil
+		},
+	}
+	mockNumberValidator := &MockNumberValidator{
+		ValidateNumberFunc: func() bool {
+			return true
+		},
+	}
+	userHandler := UserHandler{
+		OrderService:    mockOrderService,
+		NumberValidator: mockNumberValidator,
+	}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", rr.Code)
+	}
+}
+
+func TestSaveOrder_SaveOrderError(t *testing.T) {
+	userID := 123
+	orderNumber := 1234567890
+
+	mockOrderService := &MockOrderService{
+		GetOrderIDFunc: func(orderNumber string, userID int) (int, error) {
+			return -2, nil
+		},
+		SaveOrderFunc: func(orderNumber string, userID int) error {
+			return errors.New("error")
+		},
+		UpdateOrderFunc: func(orderNumber string, accrual decimal.Decimal, status string) error {
+			return nil
+		},
+	}
+	mockNumberValidator := &MockNumberValidator{
+		ValidateNumberFunc: func() bool {
+			return true
+		},
+	}
+	userHandler := UserHandler{
+		OrderService:    mockOrderService,
+		NumberValidator: mockNumberValidator,
+	}
+
+	body, _ := json.Marshal(orderNumber)
+	req := httptest.NewRequest("POST", "/api/user/order", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	rr := httptest.NewRecorder()
+
+	http.HandlerFunc(userHandler.SaveOrder).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %v", rr.Code)
 	}
 }
 

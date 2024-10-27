@@ -37,7 +37,7 @@ type UserHandler struct {
 
 // TokenGeneratorInterface определяет метод для генерации токенов.
 type TokenGeneratorInterface interface {
-	GenerateToken(user models.User) (string, error)
+	_GenerateToken(user models.User) (string, error)
 }
 
 // TokenGenerator реализует генерацию токенов.
@@ -99,7 +99,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := uh.TokenGenerator.GenerateToken(user)
+	token, err := uh.TokenGenerator._GenerateToken(user)
 
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
@@ -138,7 +138,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := uh.TokenGenerator.GenerateToken(authUser)
+	token, err := uh.TokenGenerator._GenerateToken(authUser)
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
 		return
@@ -158,7 +158,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // GenerateToken создает токен на основе ID пользователя и срока действия.
-func (gt *TokenGenerator) GenerateToken(user models.User) (string, error) {
+func (gt *TokenGenerator) _GenerateToken(user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"id":  user.ID,
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
