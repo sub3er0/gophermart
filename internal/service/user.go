@@ -1,9 +1,10 @@
 package service
 
 import (
-	"golang.org/x/crypto/bcrypt"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserRepositoryInterface interface {

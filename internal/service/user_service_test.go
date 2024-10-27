@@ -2,10 +2,11 @@ package service
 
 import (
 	"database/sql"
-	"github.com/jackc/pgx/v4"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"testing"
+
+	"github.com/jackc/pgx/v4"
 )
 
 type MockDBStorage struct {
