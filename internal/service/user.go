@@ -1,15 +1,20 @@
 package service
 
 import (
+	"golang.org/x/crypto/bcrypt"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
-	"gophermart/internal/repository"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
+type UserRepositoryInterface interface {
+	GetDBStorage() interfaces.DBStorageInterface
+	CreateUser(user models.User) (int, error)
+	GetUserID(username string) int
+	GetUserByUsername(username string) (models.User, error)
+}
+
 type UserService struct {
-	UserRepository *repository.UserRepository
+	UserRepository UserRepositoryInterface
 }
 
 func (us *UserService) GetUserID(username string) int {
