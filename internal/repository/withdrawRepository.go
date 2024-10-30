@@ -12,6 +12,27 @@ type WithdrawRepository struct {
 	DBStorage *storage.PgStorage
 }
 
+type WithdrawRepositoryInterface interface {
+	// GetDBStorage возвращает интерфейс для доступа к хранилищу данных.
+	GetDBStorage() interfaces.DBStorageInterface
+
+	// Withdrawals возвращает список выводов для указанного пользователя по его ID.
+	// Возвращает список WithdrawalInfo и ошибку, если произошла ошибка при запросе.
+	Withdrawals(userID int) ([]interfaces.WithdrawInfo, error)
+
+	// GetCurrentBalance возвращает текущий баланс пользователя по его ID.
+	// Возвращает значение decimal.Decimal и ошибку, если произошла ошибка при запросе.
+	GetCurrentBalance(userID int) (decimal.Decimal, error)
+
+	// UpdateUserBalance обновляет баланс пользователя, уменьшая его на сумму.
+	// Возвращает ошибку, если произошла ошибка при обновлении.
+	UpdateUserBalance(userID int, sum decimal.Decimal) error
+
+	// SaveWithdrawal сохраняет информацию о выводе для указанного пользователя.
+	// Возвращает ошибку, если произошла ошибка при сохранении.
+	SaveWithdrawal(userID int, orderNumber string, sum decimal.Decimal) error
+}
+
 func (wr *WithdrawRepository) GetDBStorage() interfaces.DBStorageInterface {
 	return wr.DBStorage
 }
