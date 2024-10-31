@@ -2,10 +2,11 @@ package repository
 
 import (
 	"errors"
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/storage"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 const (

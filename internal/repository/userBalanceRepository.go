@@ -1,10 +1,11 @@
 package repository
 
 import (
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/storage"
+
+	"github.com/shopspring/decimal"
 )
 
 type UserBalanceRepository struct {

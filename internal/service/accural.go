@@ -1,10 +1,11 @@
-package accrual
+package service
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/shopspring/decimal"
-	"net/http"
 )
 
 type RegisterResponse struct {
@@ -13,7 +14,13 @@ type RegisterResponse struct {
 	Accrual decimal.Decimal `json:"accrual"`
 }
 
-func GetOrderInfo(accrualServerAddress string, orderNumber string) (RegisterResponse, error) {
+type AccrualServiceInterface interface {
+	GetOrderInfo(accrualServerAddress string, orderNumber string) (RegisterResponse, error)
+}
+
+type AccrualService struct{}
+
+func (as *AccrualService) GetOrderInfo(accrualServerAddress string, orderNumber string) (RegisterResponse, error) {
 	var registerResponse RegisterResponse
 	req := resty.New().
 		SetBaseURL(accrualServerAddress).

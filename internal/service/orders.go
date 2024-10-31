@@ -1,9 +1,10 @@
 package service
 
 import (
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/repository"
+
+	"github.com/shopspring/decimal"
 )
 
 type OrderService struct {

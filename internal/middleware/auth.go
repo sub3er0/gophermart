@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"context"
-	"github.com/dgrijalva/jwt-go"
 	"net/http"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 type contextKey string

@@ -1,15 +1,15 @@
+// Package handlers содержит определения обработчиков HTTP-запросов
 package handlers
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/dgrijalva/jwt-go"
-	"gophermart/internal/accrual"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/middleware"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
+	"gophermart/internal/service"
 	"io"
 	"log"
 	"net/http"
@@ -18,24 +18,32 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
+// UserHandler содержит сервисы и переменные, используемые в методах обработки запросов
 type UserHandler struct {
 	UserService          interfaces.UserServiceInterface
 	OrderService         interfaces.OrderServiceInterface
 	WithdrawService      interfaces.WithdrawRepositoryInterface
 	UserBalanceService   interfaces.UserBalanceRepositoryInterface
+	AccrualService       service.AccrualServiceInterface
 	AccrualSystemAddress string
 	DBConnectionString   string
 	TokenGenerator       TokenGeneratorInterface
+	NumberValidator      ValidateNumberInterface
 }
 
+// TokenGeneratorInterface определяет метод для генерации токенов.
 type TokenGeneratorInterface interface {
-	GenerateToken(user models.User) (string, error)
+	_GenerateToken(user models.User) (string, error)
 }
 
+// TokenGenerator реализует генерацию токенов.
 type TokenGenerator struct{}
 
+// Register обрабатывает запрос на регистрацию пользователя.
 func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 
@@ -91,7 +99,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := uh.TokenGenerator.GenerateToken(user)
+	token, err := uh.TokenGenerator._GenerateToken(user)
 
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
@@ -113,6 +121,7 @@ func (uh *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 }
 
+// Login обрабатывает запрос на вход пользователя в систему.
 func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var creds middleware.Credentials
 
@@ -129,7 +138,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := uh.TokenGenerator.GenerateToken(authUser)
+	token, err := uh.TokenGenerator._GenerateToken(authUser)
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
 		return
@@ -148,7 +157,8 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
 
-func (gt *TokenGenerator) GenerateToken(user models.User) (string, error) {
+// GenerateToken создает токен на основе ID пользователя и срока действия.
+func (gt *TokenGenerator) _GenerateToken(user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"id":  user.ID,
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
@@ -157,6 +167,7 @@ func (gt *TokenGenerator) GenerateToken(user models.User) (string, error) {
 	return token.SignedString([]byte(middleware.SecretKey))
 }
 
+// SaveOrder обрабатывает запрос на сохранение заказа.
 func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -177,7 +188,7 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !ValidateNumber(orderNumber) {
+	if !uh.NumberValidator.ValidateNumber(orderNumber) {
 		http.Error(w, "Неверный формат номера заказа", http.StatusUnprocessableEntity)
 		return
 	}
@@ -228,8 +239,8 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var registerResponse accrual.RegisterResponse
-		registerResponse, err := accrual.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
+		var registerResponse service.RegisterResponse
+		registerResponse, err := uh.AccrualService.GetOrderInfo(uh.AccrualSystemAddress, orderNumber)
 		if err != nil {
 			log.Printf("Failed to get order info: %v", err)
 			_ = dbStorage.Rollback()
@@ -249,7 +260,6 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Здесь можно выполнить коммит после успешных операций
 			if err := dbStorage.Commit(); err != nil {
 				log.Printf("Failed to commit transaction: %v", err)
 				return
@@ -265,11 +275,13 @@ func (uh *UserHandler) SaveOrder(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 }
 
+// isDigits проверяет, все ли символы в строке являются цифрами.
 func isDigits(s string) bool {
 	re := regexp.MustCompile(`^\d+$`)
 	return re.MatchString(s)
 }
 
+// GetOrders обрабатывает запрос на получение заказов.
 func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -303,6 +315,7 @@ func (uh *UserHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetBalance обрабатывает запрос на получение баланса пользователя.
 func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -331,6 +344,7 @@ func (uh *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Withdraw обрабатывает запрос на снятие средств.
 func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -383,6 +397,7 @@ func (uh *UserHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// Withdrawals обрабатывает запрос на получение информации о выводах.
 func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(middleware.UserIDKey).(int)
 
@@ -411,7 +426,16 @@ func (uh *UserHandler) Withdrawals(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ValidateNumber(orderNumber string) bool {
+// ValidateNumberInterface определяет метод для валидации номера заказа.
+type ValidateNumberInterface interface {
+	ValidateNumber(orderNumber string) bool
+}
+
+// NumberValidator реализует валидацию номера заказа.
+type NumberValidator struct{}
+
+// ValidateNumber проверяет, является ли строка допустимым номером заказа.
+func (vn *NumberValidator) ValidateNumber(orderNumber string) bool {
 	orderNumber = strings.ReplaceAll(orderNumber, " ", "")
 	orderNumber = strings.ReplaceAll(orderNumber, "-", "")
 

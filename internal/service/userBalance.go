@@ -1,10 +1,11 @@
 package service
 
 import (
-	"github.com/shopspring/decimal"
 	"gophermart/internal/interfaces"
 	"gophermart/internal/models"
 	"gophermart/internal/repository"
+
+	"github.com/shopspring/decimal"
 )
 
 type UserBalanceService struct {
