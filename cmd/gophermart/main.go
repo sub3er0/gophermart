@@ -15,10 +15,28 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"time"
 )
 
+func saveHeapProfile(filename string) {
+	f, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("could not create memory profile: %v", err)
+	}
+	defer f.Close()
+
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		log.Fatalf("could not write memory profile: %v", err)
+	}
+}
+
 func main() {
+	if err := os.MkdirAll("profiles", 0755); err != nil {
+		log.Fatalf("could not create profiles directory: %v", err)
+	}
+
+	defer saveHeapProfile("profiles/base.pprof")
 	pgsStorage := &storage.PgStorage{}
 	cfg, err := config.InitConfig()
 
@@ -99,6 +117,7 @@ func main() {
 	userBalanceService := service.UserBalanceService{
 		UserBalanceRepository: &userBalanceRepository,
 	}
+	TokenGenerator := handlers.TokenGenerator{}
 	userHandler := handlers.UserHandler{
 		UserService:          &userService,
 		OrderService:         &orderService,
@@ -106,6 +125,7 @@ func main() {
 		UserBalanceService:   &userBalanceService,
 		AccrualSystemAddress: cfg.AccrualSystemAddress,
 		DBConnectionString:   cfg.DatabaseDsn,
+		TokenGenerator:       &TokenGenerator,
 	}
 
 	r := chi.NewRouter()
